@@ -11,8 +11,8 @@ An AI-powered application that generates python tests cases using Large Language
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/business-brochure-generator.git
-cd business-brochure-generator
+git clone https://github.com/MeghaRajpara/python-tests-generator.git
+cd python-tests-generator
 ```
 
 ### 2. Create Virtual Environment
