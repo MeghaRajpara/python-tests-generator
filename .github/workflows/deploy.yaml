@@ -1,0 +1,27 @@
+name: Secure Deploy to App Runner
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # This is required for OIDC!
+  contents: read    # This is required for checkout
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::449112697282:role/GitHubActionAppRunnerRole # Put the Role ARN from Step 2 here
+          aws-region: us-east-1
+
+      - name: Trigger App Runner Deployment
+        run: |
+          # This tells AWS to look at your new code and restart the Gradio server
+          SERVICE_ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='python-test-gen'].ServiceArn" --output text)
+          aws apprunner start-deployment --service-arn $SERVICE_ARN
