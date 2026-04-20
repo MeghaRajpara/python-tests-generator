@@ -1,27 +1,54 @@
-name: Secure Deploy to App Runner
+name: Deploy to AWS App Runner
+
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 permissions:
-  id-token: write   # This is required for OIDC!
-  contents: read    # This is required for checkout
+  id-token: write   # Required for OIDC
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: python-tests-generator
+      APP_RUNNER_SERVICE_ARN: arn:aws:apprunner:us-east-1:449112697282:service/python-tests-generator/d234e4ac0a2f42d3b8479ddbcd8a4640
+
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC)
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::449112697282:role/GitHubActionAppRunnerRole # Put the Role ARN from Step 2 here
-          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::449112697282:role/GitHubActionsRole
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Trigger App Runner Deployment
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # This tells AWS to look at your new code and restart the Gradio server
-          SERVICE_ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='python-test-gen'].ServiceArn" --output text)
-          aws apprunner start-deployment --service-arn $SERVICE_ARN
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag  $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                      $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy to App Runner
+        run: |
+          aws apprunner start-deployment \
+            --service-arn ${{ env.APP_RUNNER_SERVICE_ARN }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Deployment triggered. Check App Runner console for status."
+          echo "Service URL will be available in App Runner console."

@@ -102,4 +102,4 @@ def launch_ui():
             inputs=[code_input, test_output, module_name],
             outputs=[result_output]
         )
-        app.launch(theme=gr.themes.Base(), css=css)
+        app.launch(theme=gr.themes.Base(), css=css, server_name="0.0.0.0", server_port=7860)
